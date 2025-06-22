@@ -22,7 +22,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
 // Configure Aspire client integrations
-builder.AddSqlServerClient("app-db"); // same name as the call to AddDatabase in the AppHost
+builder.AddSqlServerClient("movies-database"); // same name as the call to AddDatabase in the AppHost
 builder.AddRedisDistributedCache("redis-cache");
 
 builder.Services.AddMemoryCache();
@@ -46,50 +46,17 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
-
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
+var moviesGroup = app.MapGroup("/movies").WithName("Movies");
 
-var moviesGroup = app.MapGroup("/movies")
-    .WithName("Movies");
-
-moviesGroup.MapGet("{id}/raw", async (DatabaseService db, int id, CancellationToken cancel) =>
-{
-    return await db.QueryForMovieByIdAsync(id, cancel);
-})
-.WithName("Raw");
-
-moviesGroup.MapGet("{id}/protected", async (CacheService cacheService, DatabaseService db, int id, CancellationToken cancel) =>
-{
-    return await cacheService.GetCacheValueWithStampedeProtectionAsync($"stampedeprotected:movie:{id}",
-        async () => await db.QueryForMovieByIdAsync(id, cancel)
-    );
-})
-.WithName("Protected");
-
-moviesGroup.MapGet("{id}/unprotected", async (CacheService cacheService, DatabaseService db, int id, CancellationToken cancel) =>
-{
-    return await cacheService.GetCacheValueAsync($"unprotected:movie:{id}",
-        async () => await db.QueryForMovieByIdAsync(id, cancel)
-    );
-})
-.WithName("Unprotected");
-
-moviesGroup.MapGet("{id}/hybridcache", async (HybridCache hybridCache, DatabaseService db, int id, CancellationToken cancel) =>
-{
-    var key = $"hybridcache:movie:{id}";
-    var state = new HybridCacheState(db, key, id);
-
-    return await hybridCache.GetOrCreateAsync(key, state,
-        static async (state, cancel) => await state.DatabaseService.QueryForMovieByIdAsync(state.RecordId, cancel),
-        tags: ["movies"],
-        cancellationToken: cancel);
-})
-.WithName("HybridCache");
-
+moviesGroup.MapGet("{id}/raw", GetMovieByIdRaw).WithName("Raw");
+moviesGroup.MapGet("{id}/protected", GetMovieByIdProtected).WithName("Protected");
+moviesGroup.MapGet("{id}/unprotected", GetMovieByIdUnprotected).WithName("Unprotected");
+moviesGroup.MapGet("{id}/hybridcache", GetMovieByIdHybridCache).WithName("HybridCache");
 
 app.MapGet("flush", async (HybridCache hybrid, CacheService cacheService, CancellationToken cancel) =>
 {
@@ -103,4 +70,38 @@ app.MapDefaultEndpoints();
 app.Run();
 
 
-public readonly record struct HybridCacheState(DatabaseService DatabaseService, string Key, int RecordId);
+static async Task<IResult> GetMovieByIdRaw(int id, DatabaseService db, CancellationToken cancel)
+    => await db.QueryForMovieByIdAsync(id, cancel)
+    is Movie movie
+        ? TypedResults.Ok(movie)
+        : TypedResults.NotFound();
+
+static async Task<IResult> GetMovieByIdProtected(int id, CacheService cacheService, DatabaseService db, CancellationToken cancel)
+    => await cacheService.GetCacheValueWithStampedeProtectionAsync($"movies:{id}:protected",
+            async () => await db.QueryForMovieByIdAsync(id, cancel))
+    is Movie movie
+        ? TypedResults.Ok(movie)
+        : TypedResults.NotFound();
+
+static async Task<IResult> GetMovieByIdUnprotected(int id, CacheService cacheService, DatabaseService db, CancellationToken cancel)
+    => await cacheService.GetCacheValueAsync($"movies:{id}:unprotected",
+            async () => await db.QueryForMovieByIdAsync(id, cancel))
+    is Movie movie
+        ? TypedResults.Ok(movie)
+        : TypedResults.NotFound();
+
+static async Task<IResult> GetMovieByIdHybridCache(int id, HybridCache hybridCache, DatabaseService db, CancellationToken cancel)
+{
+    var key = $"movies:{id}:hybridcache";
+    var state = new HybridCacheState(db, key, id);
+
+    return await hybridCache.GetOrCreateAsync(key, state,
+        static async (state, cancel) => await state.DatabaseService.QueryForMovieByIdAsync(state.RecordId, cancel),
+        tags: ["movies"]
+        //cancellationToken: cancel
+    ) is Movie movie
+        ? TypedResults.Ok(movie)
+        : TypedResults.NotFound();
+}
+
+readonly record struct HybridCacheState(DatabaseService DatabaseService, string Key, int RecordId);

@@ -6,7 +6,7 @@ var redisCache = builder.AddRedis("redis-cache");
 
 var sqlServer = builder.AddSqlServer("sqlserver").WithLifetime(ContainerLifetime.Persistent);
 
-var databaseName = "app-db";
+var databaseName = "movies-database";
 var creationScript = $$"""
     IF DB_ID('{{databaseName}}') IS NULL
         CREATE DATABASE [{{databaseName}}];
@@ -50,11 +50,10 @@ var apiService = builder.AddProject<Projects.HybridCacheVisualizer_ApiService>("
         commandOptions: CreateHttpCommandOptions("Delete")
     );
 
-
-var consumer = builder.AddProject<Projects.HybridCacheVisualizer_Consumer>("consumer")
+builder.AddProject<Projects.HybridCacheVisualizer_Consumer>("consumer")
     .WithHttpHealthCheck("/health")
     .WithReference(apiService)
-    //.WaitFor(apiService)
+    .WaitFor(apiService)
     .WithHttpCommand(
         path: "/stampede/hybridcache",
         displayName: "Stampede HybridCache",
@@ -78,7 +77,6 @@ var consumer = builder.AddProject<Projects.HybridCacheVisualizer_Consumer>("cons
 
 
 builder.Build().Run();
-
 
 static HttpCommandOptions CreateHttpCommandOptions(string icon)
 {

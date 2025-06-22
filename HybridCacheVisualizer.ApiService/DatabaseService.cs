@@ -9,11 +9,11 @@ public class DatabaseService(SqlConnection connection)
     {
         await connection.OpenAsync(cancel);
 
-        var command = connection.CreateCommand();
+        using var command = connection.CreateCommand();
         command.Parameters.AddWithValue("@ID", id);
         command.CommandText = "SELECT id, title FROM movies where id = @ID";
 
-        var reader = await command.ExecuteReaderAsync(cancel);
+        using var reader = await command.ExecuteReaderAsync(cancel);
 
         if (await reader.ReadAsync(cancel))
             return new Movie(
