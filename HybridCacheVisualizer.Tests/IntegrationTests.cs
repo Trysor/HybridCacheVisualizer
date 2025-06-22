@@ -36,7 +36,7 @@ public class IntegrationTests(AspireFixture fixture) : IClassFixture<AspireFixtu
         var apiServiceClient = app.CreateHttpClient("apiservice");
 
         List<Task<HttpResponseMessage>> tasks = [];
-        for (int id = 0; id < 10; id++)
+        for (int id = 1; id <= 10; id++)
         {
             tasks.Add(apiServiceClient.GetAsync($"movies/{id}/protected", TestContext.Current.CancellationToken));
             tasks.Add(apiServiceClient.GetAsync($"movies/{id}/unprotected", TestContext.Current.CancellationToken));
