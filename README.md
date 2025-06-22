@@ -40,15 +40,17 @@ To run the solution: `dotnet run --project HybridCacheVisualizer.AppHost` This w
 
 ### ApiService
 
-- `GET /movies/{title}`: Fetch movie directly from the database.
-- `GET /oldcache/movies/{title}`: Fetch movie using IMemoryCache and IDistributedCache with stampede protection.
-- `GET /oldcacheunprotected/movies/{title}`: Fetch movie using IMemoryCache and IDistributedCache without stampede protection.
-- `GET /hybridcache/movies/{title}`: Fetch movie using HybridCache.
+- `GET /movies/{id}/raw`: Fetch movie directly from the database by ID.
+- `GET /movies/{id}/protected`: Fetch movie using IMemoryCache and IDistributedCache with stampede protection.
+- `GET /movies/{id}/unprotected`: Fetch movie using IMemoryCache and IDistributedCache without stampede protection.
+- `GET /movies/{id}/hybridcache`: Fetch movie using HybridCache.
 - `GET /flush`: Flush all cache entries (memory and distributed).
 
 ### Consumer
 
-- `GET /stampedeSql`: Simulate multiple requests to the direct database endpoint.
-- `GET /stampedeOldWithStampedeProt`: Simulate multiple requests to the old cache endpoint with stampede protection.
-- `GET /stampedeOldUnprotected`: Simulate multiple requests to the old cache endpoint without stampede protection.
-- `GET /stampedeHybridCache`: Simulate multiple requests to the HybridCache endpoint.
+All endpoints are grouped under `/stampede`:
+
+- `GET /stampede/raw`: Simulates a cache stampede scenario by making concurrent requests that bypass all caching (direct database access).
+- `GET /stampede/protected`: Simulates a cache stampede scenario with traditional cache with a stampede protection implementation.
+- `GET /stampede/unprotected`: Simulates a cache stampede scenario with traditional cache but without stampede protection.
+- `GET /stampede/hybridcache`: Simulates a cache stampede scenario using the new HybridCache mechanism.

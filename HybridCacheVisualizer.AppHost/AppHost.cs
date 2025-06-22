@@ -56,23 +56,23 @@ var consumer = builder.AddProject<Projects.HybridCacheVisualizer_Consumer>("cons
     .WithReference(apiService)
     //.WaitFor(apiService)
     .WithHttpCommand(
-        path: "/stampedeHybridCache",
+        path: "/stampede/hybridcache",
         displayName: "Stampede HybridCache",
         commandOptions: CreateHttpCommandOptions("ThumbLike")
     )
     .WithHttpCommand(
-        path: "/stampedeSql",
+        path: "/stampede/raw",
         displayName: "Stampede SQL",
         commandOptions: CreateHttpCommandOptions("Database")
     )
     .WithHttpCommand(
-        path: "/stampedeOldWithStampedeProt",
-        displayName: "Stampede Cache [Stamp]",
+        path: "/stampede/protected",
+        displayName: "Stampede Cache [Prot.]",
         commandOptions: CreateHttpCommandOptions("FastForward")
     )
     .WithHttpCommand(
-        path: "/stampedeOldUnprotected",
-        displayName: "Stampede Cache [Oof]",
+        path: "/stampede/unprotected",
+        displayName: "Stampede Cache [Unprot.]",
         commandOptions: CreateHttpCommandOptions("DatabaseWarning")
     );
 

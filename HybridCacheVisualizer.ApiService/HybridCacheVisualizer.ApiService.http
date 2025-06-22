@@ -1,14 +1,25 @@
 ﻿@HybridCacheVisualizer.ApiService_HostAddress = https://localhost:7453
 
-@title=Pulp Fiction
-GET {{HybridCacheVisualizer.ApiService_HostAddress}}/movies/{{title}}
+@id = 3
 
 ###
 
-GET {{HybridCacheVisualizer.ApiService_HostAddress}}/oldcache/movies/{{title}}
+GET {{HybridCacheVisualizer.ApiService_HostAddress}}/flush
 
 ###
 
-GET {{HybridCacheVisualizer.ApiService_HostAddress}}/hybridcache/movies/{{title}}
+GET {{HybridCacheVisualizer.ApiService_HostAddress}}/movies/{{id}}/hybridcache
+
+###
+
+GET {{HybridCacheVisualizer.ApiService_HostAddress}}/movies/{{id}}/protected
+
+###
+
+GET {{HybridCacheVisualizer.ApiService_HostAddress}}/movies/{{id}}/raw
+
+###
+
+GET {{HybridCacheVisualizer.ApiService_HostAddress}}/movies/{{id}}/unprotected
 
 ###

@@ -1,12 +1,19 @@
 using Abstractions;
 using HybridCacheVisualizer.ApiService;
-using Microsoft.Data.SqlClient;
+using HybridCacheVisualizer.ApiService.Telemetry;
 using Microsoft.Extensions.Caching.Hybrid;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
+
+// Listen to our own ActivitySources
+builder.Services.ConfigureOpenTelemetryTracerProvider(builder =>
+{
+    builder.AddSource(ApiServiceTelemetry.ActivitySourceName);
+});
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
@@ -31,6 +38,8 @@ builder.Services.AddHybridCache(options =>
     };
 });
 
+// Add the database service
+builder.Services.AddScoped<DatabaseService>();
 
 var app = builder.Build();
 
@@ -43,51 +52,55 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.MapGet("/movies/{title}", async (SqlConnection connection, string title) =>
+
+var moviesGroup = app.MapGroup("/movies")
+    .WithName("Movies");
+
+moviesGroup.MapGet("{id}/raw", async (DatabaseService db, int id, CancellationToken cancel) =>
 {
-    return await DatabaseService.QueryDatabase(connection, title);
+    return await db.QueryForMovieByIdAsync(id, cancel);
 })
-.WithName("GetMovie");
+.WithName("Raw");
 
-
-app.MapGet("oldcache/movies/{title}", async (CacheService cacheService, SqlConnection connection, string title) =>
+moviesGroup.MapGet("{id}/protected", async (CacheService cacheService, DatabaseService db, int id, CancellationToken cancel) =>
 {
-    return await cacheService.GetCacheValueWithStampedeProtectionAsync($"stampedeprotected:movie:{title}",
-        async () => await DatabaseService.QueryDatabase(connection, title)
+    return await cacheService.GetCacheValueWithStampedeProtectionAsync($"stampedeprotected:movie:{id}",
+        async () => await db.QueryForMovieByIdAsync(id, cancel)
     );
 })
-.WithName("OldCacheGetMovie");
+.WithName("Protected");
 
-app.MapGet("oldcacheunprotected/movies/{title}", async (CacheService cacheService, SqlConnection connection, string title) =>
+moviesGroup.MapGet("{id}/unprotected", async (CacheService cacheService, DatabaseService db, int id, CancellationToken cancel) =>
 {
-    return await cacheService.GetCacheValueAsync($"unprotected:movie:{title}",
-        async () => await DatabaseService.QueryDatabase(connection, title)
+    return await cacheService.GetCacheValueAsync($"unprotected:movie:{id}",
+        async () => await db.QueryForMovieByIdAsync(id, cancel)
     );
 })
-.WithName("OldCacheUnprotectedGetMovie");
+.WithName("Unprotected");
 
-app.MapGet("hybridcache/movies/{title}", async (HybridCache hybridCache, SqlConnection connection, string title) =>
+moviesGroup.MapGet("{id}/hybridcache", async (HybridCache hybridCache, DatabaseService db, int id, CancellationToken cancel) =>
 {
-    var key = $"hybridcache:movie:{title}";
-    var state = new HybridCacheState(connection, key, title);
+    var key = $"hybridcache:movie:{id}";
+    var state = new HybridCacheState(db, key, id);
 
     return await hybridCache.GetOrCreateAsync(key, state,
-        static async (state, cancel) => await DatabaseService.QueryDatabase(state.Connection, state.Title),
-        tags: ["movies"]
-    );
+        static async (state, cancel) => await state.DatabaseService.QueryForMovieByIdAsync(state.RecordId, cancel),
+        tags: ["movies"],
+        cancellationToken: cancel);
 })
-.WithName("HybridCacheGetMovie");
+.WithName("HybridCache");
 
 
 app.MapGet("flush", async (HybridCache hybrid, CacheService cacheService, CancellationToken cancel) =>
 {
     await hybrid.RemoveByTagAsync("movies", cancel);
     await cacheService.FlushCacheAsync();
-});
+})
+.WithName("Flush");
 
 app.MapDefaultEndpoints();
 
 app.Run();
 
 
-public record struct HybridCacheState(SqlConnection Connection, string Key, string Title);
+public readonly record struct HybridCacheState(DatabaseService DatabaseService, string Key, int RecordId);

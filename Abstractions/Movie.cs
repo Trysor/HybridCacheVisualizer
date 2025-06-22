@@ -1,5 +1,5 @@
 ﻿namespace Abstractions;
 
-public record Movie(string Title)
+public record Movie(int Id, string Title)
 {
 }

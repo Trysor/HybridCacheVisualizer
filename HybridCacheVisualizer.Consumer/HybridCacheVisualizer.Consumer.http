@@ -1,17 +1,17 @@
 ﻿@HybridCacheVisualizer.Consumer_HostAddress = https://localhost:7454
 
-GET {{HybridCacheVisualizer.Consumer_HostAddress}}/stampedeSql
+GET {{HybridCacheVisualizer.Consumer_HostAddress}}/stampede/hybridcache
 
 ###
 
-GET {{HybridCacheVisualizer.Consumer_HostAddress}}/stampedeOldWithStampedeProt
+GET {{HybridCacheVisualizer.Consumer_HostAddress}}/stampede/protected
 
 ###
 
-GET {{HybridCacheVisualizer.Consumer_HostAddress}}/stampedeOldUnprotected
+GET {{HybridCacheVisualizer.Consumer_HostAddress}}/stampede/raw
 
 ###
 
-GET {{HybridCacheVisualizer.Consumer_HostAddress}}/stampedeHybridCache
+GET {{HybridCacheVisualizer.Consumer_HostAddress}}/stampede/unprotected
 
 ###

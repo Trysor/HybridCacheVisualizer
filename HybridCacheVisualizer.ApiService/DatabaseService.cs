@@ -3,21 +3,22 @@ using Microsoft.Data.SqlClient;
 
 namespace HybridCacheVisualizer.ApiService;
 
-public static class DatabaseService
+public class DatabaseService(SqlConnection connection)
 {
-    public static async Task<Movie?> QueryDatabase(SqlConnection connection, string title)
+    public async Task<Movie?> QueryForMovieByIdAsync(int id, CancellationToken cancel)
     {
+        await connection.OpenAsync(cancel);
 
-        await connection.OpenAsync();
         var command = connection.CreateCommand();
+        command.Parameters.AddWithValue("@ID", id);
+        command.CommandText = "SELECT id, title FROM movies where id = @ID";
 
-        command.Parameters.AddWithValue("@TITLE", title);
+        var reader = await command.ExecuteReaderAsync(cancel);
 
-        command.CommandText = "SELECT * FROM movies where title = @TITLE";
-        var reader = await command.ExecuteReaderAsync();
-
-        if (await reader.ReadAsync())
-            return new Movie(reader.GetString(1));
+        if (await reader.ReadAsync(cancel))
+            return new Movie(
+                Id: reader.GetInt32(0),
+                Title: reader.GetString(1));
 
         return null;
     }

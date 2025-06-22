@@ -21,8 +21,6 @@ builder.Services.AddHttpClient(name: Constants.HttpClientName, client =>
 });
 
 
-
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -33,25 +31,27 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.MapGet("stampedeSql", async (IHttpClientFactory factory)
-    => await PerformStampedeAsync(factory, "/movies/Pulp Fiction")
-)
-.WithName("stampedeSql");
+var stampedeGroup = app.MapGroup("stampede").WithName("Stampede");
 
-app.MapGet("stampedeOldWithStampedeProt", async (IHttpClientFactory factory)
-    => await PerformStampedeAsync(factory, "oldcache/movies/Pulp Fiction")
+stampedeGroup.MapGet("raw", async (IHttpClientFactory factory)
+    => await PerformStampedeAsync(factory, "/movies/3/raw")
 )
-.WithName("stampedeOldWithStampedeProt");
+.WithName("Raw");
 
-app.MapGet("stampedeOldUnprotected", async (IHttpClientFactory factory)
-    => await PerformStampedeAsync(factory, "oldcacheunprotected/movies/Pulp Fiction")
+stampedeGroup.MapGet("protected", async (IHttpClientFactory factory)
+    => await PerformStampedeAsync(factory, "movies/3/protected")
 )
-.WithName("stampedeOldUnprotected");
+.WithName("Protected");
 
-app.MapGet("stampedeHybridCache", async (IHttpClientFactory factory)
-    => await PerformStampedeAsync(factory, "hybridcache/movies/Pulp Fiction")
+stampedeGroup.MapGet("unprotected", async (IHttpClientFactory factory)
+    => await PerformStampedeAsync(factory, "movies/3/unprotected")
 )
-.WithName("stampedeHybridCache");
+.WithName("Unprotected");
+
+stampedeGroup.MapGet("hybridcache", async (IHttpClientFactory factory)
+    => await PerformStampedeAsync(factory, "movies/3/hybridcache")
+)
+.WithName("HybridCache");
 
 app.MapDefaultEndpoints();
 
@@ -69,7 +69,6 @@ static async Task<bool> PerformStampedeAsync(IHttpClientFactory factory, string 
         tasks.Add(client.GetFromJsonAsync<Movie>(endpoint));
 
     var movies = await Task.WhenAll(tasks);
-
 
     // check if we find null; if any is found, the cache logic doesn't work fully
     // returns true if none of them are null
