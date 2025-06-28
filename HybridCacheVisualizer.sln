@@ -12,7 +12,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HybridCacheVisualizer.Tests
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HybridCacheVisualizer.Consumer", "HybridCacheVisualizer.Consumer\HybridCacheVisualizer.Consumer.csproj", "{DF953E5E-A27C-1091-C33D-510BFC2E5B97}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Abstractions", "Abstractions\Abstractions.csproj", "{A6EFC685-ED23-4372-91B2-7A56A99DC29D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HybridCacheVisualizer.Abstractions", "HybridCacheVisualizer.Abstractions\HybridCacheVisualizer.Abstractions.csproj", "{A6EFC685-ED23-4372-91B2-7A56A99DC29D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
 	ProjectSection(SolutionItems) = preProject

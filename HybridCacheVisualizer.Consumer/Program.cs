@@ -1,5 +1,8 @@
-using Abstractions;
+using HybridCacheVisualizer.Abstractions;
+using HybridCacheVisualizer.Abstractions.DataObjects;
+using HybridCacheVisualizer.Abstractions.Dtos;
 using HybridCacheVisualizer.Consumer;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,14 +15,13 @@ builder.Services.AddProblemDetails();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-builder.Services.AddHttpClient(name: Constants.HttpClientName, client =>
+builder.Services.AddHttpClient(name: Constants.ServiceNames.ApiService, client =>
 {
     // This URL uses "https+http://" to indicate HTTPS is preferred over HTTP.
     // Learn more about service discovery scheme resolution at https://aka.ms/dotnet/sdschemes.
-    client.BaseAddress = new("https+http://apiservice");
+    client.BaseAddress = new($"https+http://{Constants.ServiceNames.ApiService}");
     client.Timeout = TimeSpan.FromSeconds(30);
 });
-
 
 var app = builder.Build();
 
@@ -28,49 +30,66 @@ app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi("/v1/swagger.json");
+    app.UseSwaggerUI(x =>
+    {
+        x.RoutePrefix = string.Empty;
+    });
 }
 
-var stampedeGroup = app.MapGroup("stampede").WithName("Stampede");
+var group = app.MapGroup(Constants.Endpoints.Consumer.StampedeGroup)
+    .AddEndpointFilter<ValidationFilter<StampedeRequest>>()
+    .WithSummary("Simulate cache stampede with specified caching strategy")
+    .WithDescription("Performs concurrent requests using the specified caching strategy.");
 
-stampedeGroup.MapGet("raw", async (IHttpClientFactory factory)
-    => await PerformStampedeAsync(factory, "/movies/3/raw")
-)
-.WithName("Raw");
+group.MapPost(Constants.Endpoints.Consumer.Stampede.Raw, ([FromBody] StampedeRequest request, IHttpClientFactory factory, ILogger<Program> logger)
+    => PerformStampedeAsync(Constants.Cache.Strategies.Raw, request, factory, logger)).WithName("Raw");
 
-stampedeGroup.MapGet("protected", async (IHttpClientFactory factory)
-    => await PerformStampedeAsync(factory, "movies/3/protected")
-)
-.WithName("Protected");
+group.MapPost(Constants.Endpoints.Consumer.Stampede.HybridCache, ([FromBody] StampedeRequest request, IHttpClientFactory factory, ILogger<Program> logger)
+    => PerformStampedeAsync(Constants.Cache.Strategies.HybridCache, request, factory, logger)).WithName("HybridCache");
 
-stampedeGroup.MapGet("unprotected", async (IHttpClientFactory factory)
-    => await PerformStampedeAsync(factory, "movies/3/unprotected")
-)
-.WithName("Unprotected");
+group.MapPost(Constants.Endpoints.Consumer.Stampede.Protected, ([FromBody] StampedeRequest request, IHttpClientFactory factory, ILogger<Program> logger)
+    => PerformStampedeAsync(Constants.Cache.Strategies.Protected, request, factory, logger)).WithName("Protected");
 
-stampedeGroup.MapGet("hybridcache", async (IHttpClientFactory factory)
-    => await PerformStampedeAsync(factory, "movies/3/hybridcache")
-)
-.WithName("HybridCache");
+group.MapPost(Constants.Endpoints.Consumer.Stampede.Unprotected, ([FromBody] StampedeRequest request, IHttpClientFactory factory, ILogger<Program> logger)
+    => PerformStampedeAsync(Constants.Cache.Strategies.Unprotected, request, factory, logger)).WithName("Unprotected");
 
 app.MapDefaultEndpoints();
 
 app.Run();
 
 
-static async Task<bool> PerformStampedeAsync(IHttpClientFactory factory, string endpoint)
+static async Task<IResult> PerformStampedeAsync(string strategy, StampedeRequest request, IHttpClientFactory factory, ILogger<Program> logger)
 {
-    var client = factory.CreateClient(Constants.HttpClientName);
+    LogStampede(logger, request);
 
-    int totalRequests = 20;
+    string endpoint = $"movies/{request.MovieId}/{strategy}";
+    var client = factory.CreateClient(Constants.ServiceNames.ApiService);
 
-    List<Task<Movie?>> tasks = [];
-    for (int i = 0; i < totalRequests; i++)
+    // Create concurrent tasks for stampede simulation
+    var tasks = new List<Task<Movie?>>(request.Count);
+    for (int i = 0; i < request.Count; i++)
         tasks.Add(client.GetFromJsonAsync<Movie>(endpoint));
 
-    var movies = await Task.WhenAll(tasks);
+    try
+    {
+        var movies = await Task.WhenAll(tasks).ConfigureAwait(false);
 
-    // check if we find null; if any is found, the cache logic doesn't work fully
-    // returns true if none of them are null
-    return movies.All(x => x != null);
+        // Check if all movies were retrieved successfully
+        return movies.All(movie => movie != null)
+            ? Results.Ok()
+            : TypedResults.Problem("Some movies were not retrieved successfully.");
+    }
+    catch (Exception ex)
+    {
+        return TypedResults.Problem($"Error during stampede execution: {ex.Message}");
+    }
+}
+
+public partial class Program
+{
+    [LoggerMessage(
+    Level = LogLevel.Information,
+    Message = "Executing Stampede")]
+    private static partial void LogStampede(ILogger<Program> logger, [LogProperties] StampedeRequest data);
 }

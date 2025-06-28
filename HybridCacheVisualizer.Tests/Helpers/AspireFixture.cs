@@ -1,7 +1,7 @@
 ﻿using Aspire.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace HybridCacheVisualizer.Tests;
+namespace HybridCacheVisualizer.Tests.Helpers;
 
 public sealed class AspireFixture : IAsyncLifetime
 {
@@ -16,19 +16,6 @@ public sealed class AspireFixture : IAsyncLifetime
         var cancellationToken = TestContext.Current.CancellationToken;
 
         var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.HybridCacheVisualizer_AppHost>(cancellationToken);
-        ConfigureApplicationTestingBuilder(builder);
-
-        var app = await builder.BuildAsync(cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
-        await app.StartAsync(cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
-
-        // Act
-        await app.ResourceNotifications.WaitForResourceHealthyAsync("consumer", cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
-
-        App = app;
-    }
-
-    private static void ConfigureApplicationTestingBuilder(IDistributedApplicationTestingBuilder builder)
-    {
         builder.Services.AddLogging(logging =>
         {
             logging.SetMinimumLevel(LogLevel.Debug);
@@ -41,6 +28,13 @@ public sealed class AspireFixture : IAsyncLifetime
         {
             clientBuilder.AddStandardResilienceHandler();
         });
+
+        var app = await builder.BuildAsync(cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
+        await app.StartAsync(cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
+
+        await app.ResourceNotifications.WaitForResourceHealthyAsync("consumer", cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
+
+        App = app;
     }
 
     public async ValueTask DisposeAsync()

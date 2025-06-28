@@ -1,17 +1,39 @@
 ﻿@HybridCacheVisualizer.Consumer_HostAddress = https://localhost:7454
 
-GET {{HybridCacheVisualizer.Consumer_HostAddress}}/stampede/hybridcache
+### Test HybridCache
+POST {{HybridCacheVisualizer.Consumer_HostAddress}}/stampede/hybridcache
+Content-Type: application/json
 
-###
+{
+  "movieId": 3,
+  "count": 20
+}
 
-GET {{HybridCacheVisualizer.Consumer_HostAddress}}/stampede/protected
+### Test Protected Cache
+POST {{HybridCacheVisualizer.Consumer_HostAddress}}/stampede/protected
+Content-Type: application/json
 
-###
+{
+  "movieId": 3,
+  "count": 20
+}
 
-GET {{HybridCacheVisualizer.Consumer_HostAddress}}/stampede/raw
+### Test Unprotected Cache
+POST {{HybridCacheVisualizer.Consumer_HostAddress}}/stampede/unprotected
+Content-Type: application/json
 
-###
+{
+  "movieId": 3,
+  "count": 20
+}
 
-GET {{HybridCacheVisualizer.Consumer_HostAddress}}/stampede/unprotected
+### Test Raw Database Access
+POST {{HybridCacheVisualizer.Consumer_HostAddress}}/stampede/raw
+Content-Type: application/json
+
+{
+  "movieId": 3,
+  "count": 20
+}
 
 ###

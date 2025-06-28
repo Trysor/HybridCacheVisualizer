@@ -4,10 +4,6 @@
 
 ###
 
-GET {{HybridCacheVisualizer.ApiService_HostAddress}}/flush
-
-###
-
 GET {{HybridCacheVisualizer.ApiService_HostAddress}}/movies/{{id}}/hybridcache
 
 ###
@@ -21,5 +17,9 @@ GET {{HybridCacheVisualizer.ApiService_HostAddress}}/movies/{{id}}/raw
 ###
 
 GET {{HybridCacheVisualizer.ApiService_HostAddress}}/movies/{{id}}/unprotected
+
+###
+
+GET {{HybridCacheVisualizer.ApiService_HostAddress}}/flush
 
 ###

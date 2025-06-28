@@ -1,107 +1,96 @@
-using Abstractions;
+using HybridCacheVisualizer.Abstractions;
 using HybridCacheVisualizer.ApiService;
 using HybridCacheVisualizer.ApiService.Telemetry;
 using Microsoft.Extensions.Caching.Hybrid;
-using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add service defaults & Aspire client integrations.
-builder.AddServiceDefaults();
-
-// Listen to our own ActivitySources
-builder.Services.ConfigureOpenTelemetryTracerProvider(builder =>
+builder.Services.AddOpenTelemetry()
+    .WithTracing(builder =>
 {
-    builder.AddSource(ApiServiceTelemetry.ActivitySourceName);
+    builder.AddSource(Constants.Telemetry.ApiService.Sources.ActivitySourceName);
+})
+    .WithMetrics(builder =>
+{
+    builder.AddMeter(Constants.Telemetry.ApiService.Sources.MeterName);
 });
 
-// Add services to the container.
+builder.AddServiceDefaults();
 builder.Services.AddProblemDetails();
-
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-// Configure Aspire client integrations
-builder.AddSqlServerClient("movies-database"); // same name as the call to AddDatabase in the AppHost
-builder.AddRedisDistributedCache("redis-cache");
+builder.AddSqlServerClient(Constants.ServiceNames.MoviesDatabase);
+builder.AddRedisDistributedCache(Constants.ServiceNames.RedisCache);
 
 builder.Services.AddMemoryCache();
-builder.Services.AddSingleton<CacheService>(); // old system
+builder.Services.AddSingleton<CacheService>();
+builder.Services.AddSingleton<CachingMetrics>();
 
-// new system
 builder.Services.AddHybridCache(options =>
 {
     options.DefaultEntryOptions = new()
     {
-        Expiration = CacheConstants.DistributedCacheAbsoluteExpiration,
-        LocalCacheExpiration = CacheConstants.MemoryCacheAbsoluteExpiration
+        Expiration = Constants.Cache.Configuration.DistributedCacheExpirationTime,
+        LocalCacheExpiration = Constants.Cache.Configuration.MemoryCacheExpirationTime,
     };
 });
 
-// Add the database service
 builder.Services.AddScoped<DatabaseService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi("/v1/swagger.json");
+    app.UseSwaggerUI(x =>
+    {
+        x.RoutePrefix = string.Empty;
+    });
 }
 
-var moviesGroup = app.MapGroup("/movies").WithName("Movies");
+var moviesGroup = app.MapGroup(Constants.Endpoints.ApiService.MoviesGroup).WithName("Movies");
+moviesGroup.MapGet(Constants.Endpoints.ApiService.Movies.Raw, GetMovieByIdRaw).WithName("Raw");
+moviesGroup.MapGet(Constants.Endpoints.ApiService.Movies.Protected, GetMovieByIdProtected).WithName("Protected");
+moviesGroup.MapGet(Constants.Endpoints.ApiService.Movies.Unprotected, GetMovieByIdUnprotected).WithName("Unprotected");
+moviesGroup.MapGet(Constants.Endpoints.ApiService.Movies.HybridCache, GetMovieByIdHybridCache).WithName("HybridCache");
 
-moviesGroup.MapGet("{id}/raw", GetMovieByIdRaw).WithName("Raw");
-moviesGroup.MapGet("{id}/protected", GetMovieByIdProtected).WithName("Protected");
-moviesGroup.MapGet("{id}/unprotected", GetMovieByIdUnprotected).WithName("Unprotected");
-moviesGroup.MapGet("{id}/hybridcache", GetMovieByIdHybridCache).WithName("HybridCache");
-
-app.MapGet("flush", async (HybridCache hybrid, CacheService cacheService, CancellationToken cancel) =>
-{
-    await hybrid.RemoveByTagAsync("movies", cancel);
-    await cacheService.FlushCacheAsync();
-})
-.WithName("Flush");
-
+app.MapGet(Constants.Endpoints.ApiService.Flush, ExecuteFlush).WithName("Flush");
 app.MapDefaultEndpoints();
-
 app.Run();
 
-
 static async Task<IResult> GetMovieByIdRaw(int id, DatabaseService db, CancellationToken cancel)
-    => await db.QueryForMovieByIdAsync(id, cancel)
-    is Movie movie
-        ? TypedResults.Ok(movie)
-        : TypedResults.NotFound();
+    => ReturnOkOrNotFound(await db.QueryForMovieByIdAsync(id, cancel).ConfigureAwait(false));
 
 static async Task<IResult> GetMovieByIdProtected(int id, CacheService cacheService, DatabaseService db, CancellationToken cancel)
-    => await cacheService.GetCacheValueWithStampedeProtectionAsync($"movies:{id}:protected",
-            async () => await db.QueryForMovieByIdAsync(id, cancel))
-    is Movie movie
-        ? TypedResults.Ok(movie)
-        : TypedResults.NotFound();
+    => ReturnOkOrNotFound(
+        await cacheService.GetCacheValueWithStampedeProtectionAsync(
+            Constants.Cache.Keys.CreateMovieKey(id, Constants.Cache.Strategies.Protected),
+            async () => await db.QueryForMovieByIdAsync(id, cancel).ConfigureAwait(false)).ConfigureAwait(false));
 
 static async Task<IResult> GetMovieByIdUnprotected(int id, CacheService cacheService, DatabaseService db, CancellationToken cancel)
-    => await cacheService.GetCacheValueAsync($"movies:{id}:unprotected",
-            async () => await db.QueryForMovieByIdAsync(id, cancel))
-    is Movie movie
-        ? TypedResults.Ok(movie)
-        : TypedResults.NotFound();
+    => ReturnOkOrNotFound(
+        await cacheService.GetCacheValueAsync(
+            Constants.Cache.Keys.CreateMovieKey(id, Constants.Cache.Strategies.Unprotected),
+            async () => await db.QueryForMovieByIdAsync(id, cancel).ConfigureAwait(false)).ConfigureAwait(false));
 
 static async Task<IResult> GetMovieByIdHybridCache(int id, HybridCache hybridCache, DatabaseService db, CancellationToken cancel)
-{
-    var key = $"movies:{id}:hybridcache";
-    var state = new HybridCacheState(db, key, id);
+    => ReturnOkOrNotFound(
+        await hybridCache.GetOrCreateAsync(
+            Constants.Cache.Keys.CreateMovieKey(id, Constants.Cache.Strategies.HybridCache),
+            new HybridCacheState(db, id),
+            static async (state, cancel) => await state.DatabaseService.QueryForMovieByIdAsync(state.RecordId, cancel).ConfigureAwait(false),
+            //cancellationToken: cancel,
+            tags: [Constants.Cache.Tags.Movies]).ConfigureAwait(false));
 
-    return await hybridCache.GetOrCreateAsync(key, state,
-        static async (state, cancel) => await state.DatabaseService.QueryForMovieByIdAsync(state.RecordId, cancel),
-        tags: ["movies"]
-        //cancellationToken: cancel
-    ) is Movie movie
-        ? TypedResults.Ok(movie)
-        : TypedResults.NotFound();
+static async Task<IResult> ExecuteFlush(HybridCache hybridCache, CacheService cacheService, CancellationToken cancel)
+{
+    await hybridCache.RemoveByTagAsync(Constants.Cache.Tags.Movies, cancel).ConfigureAwait(false);
+    await cacheService.FlushCacheAsync().ConfigureAwait(false);
+    return TypedResults.Ok("Cache flushed successfully.");
 }
 
-readonly record struct HybridCacheState(DatabaseService DatabaseService, string Key, int RecordId);
+static IResult ReturnOkOrNotFound<T>(T? value) where T : class => value is null ? TypedResults.NotFound() : TypedResults.Ok(value);
+
+readonly record struct HybridCacheState(DatabaseService DatabaseService, int RecordId);
