@@ -1,5 +1,8 @@
 ﻿using Aspire.Hosting;
+using Aspire.Hosting.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Xunit;
 
 namespace HybridCacheVisualizer.Tests.Helpers;
 

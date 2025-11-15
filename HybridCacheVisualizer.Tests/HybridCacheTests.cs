@@ -2,6 +2,7 @@
 using HybridCacheVisualizer.Abstractions.DataObjects;
 using HybridCacheVisualizer.Tests.Helpers;
 using Microsoft.Extensions.Caching.Hybrid;
+using Xunit;
 
 namespace HybridCacheVisualizer.Tests;
 

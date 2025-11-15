@@ -10,7 +10,7 @@ HybridCache is a new caching abstraction in .NET that combines the speed of in-m
 
 **Cache stampede** occurs when multiple concurrent requests for the same uncached data overwhelm the backing store (database). HybridCache automatically prevents this by ensuring only one request fetches the data while others wait for the result.
 
-- [HybridCache Documentation](https://learn.microsoft.com/en-us/aspnet/core/performance/caching/hybrid?view=aspnetcore-9.0)
+- [HybridCache Documentation](https://learn.microsoft.com/en-us/aspnet/core/performance/caching/hybrid?view=aspnetcore-10.0)
 
 ## Key Learning Outcomes
 
@@ -33,7 +33,7 @@ The `HybridCacheVisualizer.Tests` project demonstrates HybridCache features thro
 
 ## Prerequisites
 
-- **.NET 9 SDK**: Required to build and run the solution. [Download .NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+- **.NET 10 SDK**: Required to build and run the solution. [Download .NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - **Podman**: Used for container orchestration in development, providing a lightweight alternative to Docker. [Learn more about Podman](https://podman.io/)
 - (Optional) **Visual Studio 2022+** or **VS Code** for development.
 

@@ -1,8 +1,6 @@
 using HybridCacheVisualizer.Abstractions;
 using HybridCacheVisualizer.Abstractions.DataObjects;
 using HybridCacheVisualizer.Abstractions.Dtos;
-using HybridCacheVisualizer.Consumer;
-using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,6 +9,8 @@ builder.AddServiceDefaults();
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
+
+builder.Services.AddValidation();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -38,20 +38,19 @@ if (app.Environment.IsDevelopment())
 }
 
 var group = app.MapGroup(Constants.Endpoints.Consumer.StampedeGroup)
-    .AddEndpointFilter<ValidationFilter<StampedeRequest>>()
     .WithSummary("Simulate cache stampede with specified caching strategy")
     .WithDescription("Performs concurrent requests using the specified caching strategy.");
 
-group.MapPost(Constants.Endpoints.Consumer.Stampede.Raw, ([FromBody] StampedeRequest request, IHttpClientFactory factory, ILogger<Program> logger)
+group.MapPost(Constants.Endpoints.Consumer.Stampede.Raw, (StampedeRequest request, IHttpClientFactory factory, ILogger<Program> logger)
     => PerformStampedeAsync(Constants.Cache.Strategies.Raw, request, factory, logger)).WithName("Raw");
 
-group.MapPost(Constants.Endpoints.Consumer.Stampede.HybridCache, ([FromBody] StampedeRequest request, IHttpClientFactory factory, ILogger<Program> logger)
+group.MapPost(Constants.Endpoints.Consumer.Stampede.HybridCache, (StampedeRequest request, IHttpClientFactory factory, ILogger<Program> logger)
     => PerformStampedeAsync(Constants.Cache.Strategies.HybridCache, request, factory, logger)).WithName("HybridCache");
 
-group.MapPost(Constants.Endpoints.Consumer.Stampede.Protected, ([FromBody] StampedeRequest request, IHttpClientFactory factory, ILogger<Program> logger)
+group.MapPost(Constants.Endpoints.Consumer.Stampede.Protected, (StampedeRequest request, IHttpClientFactory factory, ILogger<Program> logger)
     => PerformStampedeAsync(Constants.Cache.Strategies.Protected, request, factory, logger)).WithName("Protected");
 
-group.MapPost(Constants.Endpoints.Consumer.Stampede.Unprotected, ([FromBody] StampedeRequest request, IHttpClientFactory factory, ILogger<Program> logger)
+group.MapPost(Constants.Endpoints.Consumer.Stampede.Unprotected, (StampedeRequest request, IHttpClientFactory factory, ILogger<Program> logger)
     => PerformStampedeAsync(Constants.Cache.Strategies.Unprotected, request, factory, logger)).WithName("Unprotected");
 
 app.MapDefaultEndpoints();

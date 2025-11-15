@@ -1,8 +1,11 @@
+using Aspire.Hosting.Testing;
 using HybridCacheVisualizer.Abstractions;
 using HybridCacheVisualizer.Abstractions.DataObjects;
 using HybridCacheVisualizer.Abstractions.Dtos;
 using HybridCacheVisualizer.Tests.Helpers;
+using System.Net;
 using System.Net.Http.Json;
+using Xunit;
 
 namespace HybridCacheVisualizer.Tests;
 
