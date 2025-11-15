@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+    <File Path="global.json" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="HybridCacheVisualizer.Abstractions/HybridCacheVisualizer.Abstractions.csproj" />
+  <Project Path="HybridCacheVisualizer.ApiService/HybridCacheVisualizer.ApiService.csproj" />
+  <Project Path="HybridCacheVisualizer.AppHost/HybridCacheVisualizer.AppHost.csproj" />
+  <Project Path="HybridCacheVisualizer.Consumer/HybridCacheVisualizer.Consumer.csproj" />
+  <Project Path="HybridCacheVisualizer.ServiceDefaults/HybridCacheVisualizer.ServiceDefaults.csproj" />
+  <Project Path="HybridCacheVisualizer.Tests/HybridCacheVisualizer.Tests.csproj" />
+</Solution>
